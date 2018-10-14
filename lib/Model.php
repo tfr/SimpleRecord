@@ -85,7 +85,7 @@ class Model
 	 *
 	 * @var array
 	 */
-	private $attributes = array();
+	protected $attributes = array();
 
 	/**
 	 * Flag whether or not this model's attributes have been modified since it will either be null or an array of column_names that have been modified
@@ -1311,7 +1311,7 @@ class Model
 	 *
 	 * @var array
 	 */
-	static $VALID_OPTIONS = array('conditions', 'limit', 'offset', 'order', 'select', 'joins', 'include', 'readonly', 'group', 'from', 'having');
+	static $VALID_OPTIONS = array('conditions', 'limit', 'offset', 'order', 'select', 'joins', 'include', 'readonly', 'group', 'from', 'having', 'hydrate');
 
 	/**
 	 * Enables the use of dynamic finders.
@@ -1654,6 +1654,8 @@ class Model
 			throw new RecordNotFound("Couldn't find ".get_called_class()." without an ID");
 		}
 
+        $values = (array)$values;
+
 		$table = static::table();
 
 		if($table->cache_individual_model)
@@ -1695,9 +1697,9 @@ class Model
 	 * @param array $values An array of values for any parameters that needs to be bound
 	 * @return array An array of models
 	 */
-	public static function find_by_sql($sql, $values=null)
+	public static function find_by_sql($sql, $values=null, $hydrade = false)
 	{
-		return static::table()->find_by_sql($sql, $values, true);
+		return static::table()->find_by_sql($sql, $values, true, null, $hydrade);
 	}
 
 	/**
@@ -1705,7 +1707,7 @@ class Model
 	 *
 	 * @param string $sql SQL to execute
 	 * @param array $values Bind values, if any, for the query
-	 * @return object A PDOStatement object
+	 * @return \PDOStatement
 	 */
 	public static function query($sql, $values=null)
 	{

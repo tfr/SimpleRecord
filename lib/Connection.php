@@ -303,13 +303,14 @@ abstract class Connection
 		return $this->connection->lastInsertId($sequence);
 	}
 
-	/**
-	 * Execute a raw SQL query on the database.
-	 *
-	 * @param string $sql Raw SQL string to execute.
-	 * @param array &$values Optional array of bind values
-	 * @return mixed A result set object
-	 */
+    /**
+     * Execute a raw SQL query on the database.
+     *
+     * @param string $sql Raw SQL string to execute.
+     * @param array &$values Optional array of bind values
+     * @return \PDOStatement
+     * @throws DatabaseException
+     */
 	public function query($sql, &$values=array())
 	{
 		if ($this->logging)

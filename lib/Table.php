@@ -18,6 +18,7 @@ class Table
 	private static $cache = array();
 
 	public $class;
+	/** @var  Connection */
 	public $conn;
 	public $pk;
 	public $last_sql;
@@ -215,8 +216,12 @@ class Table
 		$sql = $this->options_to_sql($options);
 		$readonly = (array_key_exists('readonly',$options) && $options['readonly']) ? true : false;
 		$eager_load = array_key_exists('include',$options) ? $options['include'] : null;
-
-		return $this->find_by_sql($sql->to_s(),$sql->get_where_values(), $readonly, $eager_load);
+        $hydrade = $options['hydrate'] ?? true;
+        if($hydrade) {
+            $eager_load = null;
+            $readonly = false;
+        }
+		return $this->find_by_sql($sql->to_s(),$sql->get_where_values(), $readonly, $eager_load, $hydrade);
 	}
 
 	public function cache_key_for_model($pk)
@@ -228,7 +233,7 @@ class Table
 		return $this->class->name . '-' . $pk;
 	}
 
-	public function find_by_sql($sql, $values=null, $readonly=false, $includes=null)
+	public function find_by_sql($sql, $values=null, $readonly=false, $includes=null, $hydrate = true)
 	{
 		$this->last_sql = $sql;
 
@@ -239,31 +244,39 @@ class Table
 		$self = $this;
 		while (($row = $sth->fetch()))
 		{
-			$cb = function() use ($row, $self)
-			{
-				return new $self->class->name($row, false, true, false);
-			};
-			if ($this->cache_individual_model)
-			{
-				$key = $this->cache_key_for_model(array_intersect_key($row, array_flip($this->pk)));
-				$model = Cache::get($key, $cb, $this->cache_model_expire);
-			}
-			else
-			{
-				$model = $cb();
-			}
+		    if(!$hydrate) {
+                $list[] = $row;
+                continue;
+            } else {
+                $cb = function() use ($row, $self)
+                {
+                    return new $self->class->name($row, false, true, false);
+                };
+                if ($this->cache_individual_model)
+                {
+                    $key = $this->cache_key_for_model(array_intersect_key($row, array_flip($this->pk)));
+                    $model = Cache::get($key, $cb, $this->cache_model_expire);
+                }
+                else
+                {
+                    $model = $cb();
+                }
 
-			if ($readonly)
-				$model->readonly();
+                if ($readonly)
+                    $model->readonly();
 
-			if ($collect_attrs_for_includes)
-				$attrs[] = $model->attributes();
+                if ($collect_attrs_for_includes)
+                    $attrs[] = $model->attributes();
 
-			$list[] = $model;
+                $list[] = $model;
+
+                if ($hydrate && $collect_attrs_for_includes && !empty($list))
+                    $this->execute_eager_load($list, $attrs, $includes);
+
+            }
+
 		}
 
-		if ($collect_attrs_for_includes && !empty($list))
-			$this->execute_eager_load($list, $attrs, $includes);
 
 		return $list;
 	}
